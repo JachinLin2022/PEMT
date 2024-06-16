@@ -1,0 +1,12 @@
+__pycache__
+.DS_Store
+*.pyc
+outputs
+runs
+attempt.egg-info
+wandb
+*.log
+*.out
+result**
+source_prompts**
+efficiency**
