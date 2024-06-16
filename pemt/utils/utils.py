@@ -240,17 +240,8 @@ def pad_punctuation(text):
 
 
 def init_task_param(config, tokenizer):
-    print('init task param')
+    logger.info('init task param')
     task = config.target_task[0]
-    # task_desc_map = {
-    #     'qnli': 'Given a question and a context sentence, the task is to determine whether the context sentence contains the answer to the question.',
-    #     'cola': 'Given a sentence, the task is to judge the grammatical acceptability of the sentence.',
-    #     'mnli': 'Given a premise sentence and a hypothesis sentence, the task is to predict whether the premise entails the hypothesis (entailment), contradicts the hypothesis (contradiction), or neither (neutral).',
-    #     'qqp': 'Given two questions, the task is to determine whether two given questions have the same intent or meaning.',
-    #     'superglue-cb': 'Given a premise and a hypothesis, the task is to determine the type and strength of the commitment being expressed.',
-    #     'rte': 'Given a premise sentence and a hypothesis sentence, the task is to determine whether the hypothesis can be inferred from the premise.'
-    #     ''
-    # }
     task_desc_map = {
         "qnli": "Given a question and a context sentence, the task is to determine whether the context sentence contains the answer to the question.",
         "mnli": "Given a premise sentence and a hypothesis sentence, the task is to predict whether the premise entails the hypothesis, contradicts the hypothesis, or neither.",
@@ -280,7 +271,7 @@ def init_task_param(config, tokenizer):
     task_token_id = tokenizer(task_desc_map[task])['input_ids']
     config.task_embedding_len = len(task_token_id)
     config.task_embedding_init_token = task_token_id
-    print(f"task embedding len={config.task_embedding_len}, token={task_token_id}, desc={task_desc_map[task]}")
+    logger.info(f"task embedding len={config.task_embedding_len}, token={task_token_id}, desc={task_desc_map[task]}")
 
 
 def modify_model_after_init(model:nn.Module, training_args, adapter_args, adapter_config):
@@ -290,12 +281,12 @@ def modify_model_after_init(model:nn.Module, training_args, adapter_args, adapte
     if adapter_args.add_lora and adapter_args.load_lora_path is not None:
         lora_list = adapter_args.load_lora_path.split(',')
         if len(lora_list) == 1:
-            print(f'load lora weight from:{adapter_args.load_lora_path}')
+            logger.info(f'load lora weight from:{adapter_args.load_lora_path}')
             lora_dict = torch.load(adapter_args.load_lora_path)
             model.load_state_dict(lora_dict, strict=False)
         else:
             for i,path in enumerate(lora_list):
-                print(f'load lora weight from:{path}')
+                logger.info(f'load lora weight from:{path}')
                 lora_dict = torch.load(path)
                 for key in list(lora_dict.keys()):
                     # 创建新的键名
@@ -306,20 +297,16 @@ def modify_model_after_init(model:nn.Module, training_args, adapter_args, adapte
 
     if adapter_args.load_adapter_path is not None:
         adapter_list = adapter_args.load_adapter_path.split(',')
-        print(adapter_list)
+        logger.info(adapter_list)
         if len(adapter_list) == 1:
-            print(f'load adapter weight from:{adapter_args.load_adapter_path}')
+            logger.info(f'load adapter weight from:{adapter_args.load_adapter_path}')
             adapter_dict = torch.load(adapter_args.load_adapter_path)            
-            # print(adapter_dict['decoder.block.11.layer.2.DenseReluDense.adapter_controller.adapters.mnli.down_sampler.weight'])
             model.load_state_dict(adapter_dict, strict=False)
-            # print(model.decoder.block[11].layer[2].DenseReluDense.adapter_controller.adapters.mnli.down_sampler.weight)
         else:
             for adapter in adapter_list:
-                print(f'load many adapter weight from:{adapter}')
+                logger.info(f'load many adapter weight from:{adapter}')
                 adapter_dict = torch.load(adapter)
-                # print(adapter_dict['decoder.block.11.layer.2.DenseReluDense.adapter_controller.adapters.mnli.down_sampler.weight'])
                 model.load_state_dict(adapter_dict, strict=False)
-                # print(adapter_dict['decoder.block.11.layer.2.DenseReluDense.adapter_controller.adapters.mnli.down_sampler.weight'])
 
     trainable_params = sum(p.numel()
                            for p in model.parameters() if p.requires_grad)

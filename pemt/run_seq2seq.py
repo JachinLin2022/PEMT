@@ -119,95 +119,79 @@ def main():
     logger.info("Training/evaluation parameters %s", training_args)
 
     # Set seed before initializing model.
-    # training_args.seed = 30724
     set_seed(training_args.seed)
-    try:
-        # Load a model config
-        config = T5Config.from_pretrained(
-            model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-            # cache_dir=model_args.cache_dir,
-            # revision=model_args.model_revision,
-            # use_auth_token=True if model_args.use_auth_token else None,
-        )
-        config.train_task_adapters = adapter_args.train_task_adapters
-        config.add_lora = adapter_args.add_lora
-        config.add_atten_lora = adapter_args.add_atten_lora
-        config.atten_lora_rank = adapter_args.atten_lora_rank
-        config.prefix_tuning = adapter_args.prefix_tuning
-        config.attn_prefix_tuning = model_args.attn_prefix_tuning
-        config.attn_method = model_args.attn_method
-        config.ignore_target = model_args.ignore_target
-        config.shared_attn = model_args.shared_attn
-        config.prefix_num = model_args.prefix_num
-        config.num_target = len(data_args.task_name)
-        config.target_task = data_args.task_name
-        config.source_task = data_args.task_name
-        # adamix
-        config.adapter_size = adapter_args.adapter_size
-        config.sharing_up = adapter_args.sharing_up
-        config.sharing_down = adapter_args.sharing_down
-        config.inference_level = adapter_args.inference_level
-        config.num_experts = adapter_args.num_experts
-        # mixda
-        config.apply_mixda = adapter_args.apply_mixda
-        config.num_of_kas = adapter_args.num_of_kas
-        config.adapter_down_scale = adapter_args.adapter_down_scale
-        config.layers = [int(item) for item in adapter_args.layers.split(',')] if adapter_args.layers is not None else None
 
-        if adapter_args.load_adapter_path is not None:
-            source_list = []
-            for adapter in adapter_args.load_adapter_path.split(','):
-                if 'qnli' in adapter:
-                    source_list.append('qnli')
-                if 'mnli' in adapter:
-                    source_list.append('mnli')
-                if 'qqp' in adapter:
-                    source_list.append('qqp')
-                if 'sst2' in adapter:
-                    source_list.append('sst2')
-                if 'squad' in adapter:
-                    source_list.append('squad')
-                if 'superglue-record' in adapter:
-                    source_list.append('superglue-record')
-            config.source_task = source_list
+    # Load a model config
+    config = T5Config.from_pretrained(
+        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+    )
+    config.train_task_adapters = adapter_args.train_task_adapters
+    config.add_lora = adapter_args.add_lora
+    config.add_atten_lora = adapter_args.add_atten_lora
+    config.atten_lora_rank = adapter_args.atten_lora_rank
+    config.prefix_tuning = adapter_args.prefix_tuning
+    config.attn_prefix_tuning = model_args.attn_prefix_tuning
+    config.attn_method = model_args.attn_method
+    config.ignore_target = model_args.ignore_target
+    config.shared_attn = model_args.shared_attn
+    config.prefix_num = model_args.prefix_num
+    config.num_target = len(data_args.task_name)
+    config.target_task = data_args.task_name
+    config.source_task = data_args.task_name
+    # adamix
+    config.adapter_size = adapter_args.adapter_size
+    config.sharing_up = adapter_args.sharing_up
+    config.sharing_down = adapter_args.sharing_down
+    config.inference_level = adapter_args.inference_level
+    config.num_experts = adapter_args.num_experts
+    # mixda
+    config.apply_mixda = adapter_args.apply_mixda
+    config.num_of_kas = adapter_args.num_of_kas
+    config.adapter_down_scale = adapter_args.adapter_down_scale
+    config.layers = [int(item) for item in adapter_args.layers.split(',')] if adapter_args.layers is not None else None
 
-        config.temperature = model_args.temperature
-        config.learned_temperature = model_args.learned_temperature
-        config.fix_attention = model_args.fix_attention
-        adapter_config = get_adapter_config(
-            adapter_args, data_args, training_args, config)
-        config.lora_num = len(adapter_args.load_lora_path.split(',')) if adapter_args.load_lora_path else 1
-        config.add_task_embedding = adapter_args.add_task_embedding
-        config.load_task_path = adapter_args.load_task_path
-        config.init_task_from_vocab = adapter_args.init_task_from_vocab
-        # Set tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
-            # cache_dir=model_args.cache_dir,
-            # use_fast=model_args.use_fast_tokenizer,
-            # revision=model_args.model_revision,
-            # use_auth_token=True if model_args.use_auth_token else None,
-        )
+    if adapter_args.load_adapter_path is not None:
+        source_list = []
+        for adapter in adapter_args.load_adapter_path.split(','):
+            if 'qnli' in adapter:
+                source_list.append('qnli')
+            if 'mnli' in adapter:
+                source_list.append('mnli')
+            if 'qqp' in adapter:
+                source_list.append('qqp')
+            if 'sst2' in adapter:
+                source_list.append('sst2')
+            if 'squad' in adapter:
+                source_list.append('squad')
+            if 'superglue-record' in adapter:
+                source_list.append('superglue-record')
+        config.source_task = source_list
 
-        # set task embedding param
-        if config.add_task_embedding:
-            init_task_param(config, tokenizer)
-            # data_args.max_source_length = data_args.max_source_length + config.task_embedding_len
-            # print('After add task embedding, max length is ', data_args.max_source_length)
+    config.temperature = model_args.temperature
+    config.learned_temperature = model_args.learned_temperature
+    config.fix_attention = model_args.fix_attention
+    adapter_config = get_adapter_config(
+        adapter_args, data_args, training_args, config)
+    config.lora_num = len(adapter_args.load_lora_path.split(',')) if adapter_args.load_lora_path else 1
+    config.add_task_embedding = adapter_args.add_task_embedding
+    config.load_task_path = adapter_args.load_task_path
+    config.init_task_from_vocab = adapter_args.init_task_from_vocab
+    # Set tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
+    )
 
-        # Initialize the model
-        model = T5ForConditionalGeneration.from_pretrained(
-            model_args.model_name_or_path,
-            # from_tf=bool(".ckpt" in model_args.model_name_or_path),
-            config=config,
-            # cache_dir=model_args.cache_dir,
-            # revision=model_args.model_revision,
-            # use_auth_token=True if model_args.use_auth_token else None,
-            adapter_config=adapter_config
-        )
-    except Exception as e:
-        print(e)
-        exit(1)
+    # set task embedding param
+    if config.add_task_embedding:
+        init_task_param(config, tokenizer)
+
+    # Initialize the model
+    model = T5ForConditionalGeneration.from_pretrained(
+        model_args.model_name_or_path,
+        config=config,
+        adapter_config=adapter_config
+    )
+
 
     if model_args.load_prefix_embeddings is True:
         if model_args.prompt_embedding_path is None:
@@ -260,15 +244,12 @@ def main():
     model.resize_token_embeddings(len(tokenizer))
     model:nn.Module = modify_model_after_init(
         model, training_args, adapter_args, adapter_config)
-    print(model)
+    
+    # print(model)
     for n,p in model.named_parameters():
         if p.requires_grad:
             print(n,p.requires_grad,p.shape)
-    for n,p in model.named_parameters():
-        if 'lora' in n:
-            print(n, p.requires_grad,p.shape)
 
-    # print(model.decoder.block[11].layer[2].adapter_controller.adapters.rte.down_sampler.weight)
     training_args.run_name = training_args.output_dir + '-' + ''.join(data_args.task_name)
     data_args.dataset_name = data_args.task_name
     data_args.eval_dataset_name = data_args.eval_dataset_name
@@ -367,7 +348,7 @@ def main():
                     load_from_cache_file=not data_args.overwrite_cache,
                 )
         train_dataset = concatenate_datasets(train_datasets)
-        print(train_dataset)
+        logger.info(train_dataset)
         
     if training_args.do_eval:
         if data_args.validation_files is not None:
@@ -412,7 +393,7 @@ def main():
                     remove_columns=column_names,
                     load_from_cache_file=not data_args.overwrite_cache,
                 )
-            print(eval_datasets[name])
+            logger.info(eval_datasets[name])
 
     if training_args.do_test:
         if data_args.test_files is not None:
@@ -473,10 +454,9 @@ def main():
     eval_metrics = [AutoTask.get(dataset_name, dataset_config_name).metric
                     for dataset_name, dataset_config_name in zip(data_args.dataset_name, data_args.dataset_config_name)][0]
 
-    print(data_args.eval_dataset_name)
+    logger.info(data_args.eval_dataset_name)
     compute_metrics_fn = build_compute_metrics_fn(
         data_args.eval_dataset_name, tokenizer, data_args.ignore_pad_token_for_loss) if training_args.predict_with_generate else None
-    # print(compute_metrics_fn)
 
     data_info = {"eval": eval_datasets[data_args.eval_dataset_name[0]]['extra_fields'],
                  "test": test_datasets[data_args.test_dataset_name[0]]['extra_fields'] if training_args.do_test else None,
@@ -597,13 +577,13 @@ def main():
 
         if adapter_args.train_lora:
             torch.save(lora_state_dict(model), f'{training_args.output_dir}/lora.pt')
-            print('save lora!!')
+            logger.info('save lora!!')
         if adapter_args.train_task_adapters:
             torch.save(adapter_state_dict(model), f'{training_args.output_dir}/adapter.pt')
-            print('save adapters!!')
+            logger.info('save adapters!!')
         if adapter_args.add_task_embedding:
             torch.save(task_embedding_state_dict(model), f'{training_args.output_dir}/task_embedding.pt')
-            print('save task_embedding!!')
+            logger.info('save task_embedding!!')
 
     if torch.cuda.is_available() and training_args.compute_memory:
         peak_memory = (torch.cuda.max_memory_allocated() / 1024 ** 2)/1000
@@ -675,7 +655,6 @@ def main():
     results = {}
     if training_args.eval_all_at_last:
         for checkpoint_dir in glob.glob(os.path.join(training_args.output_dir, "checkpoint-*_prompt_only")):
-            print(checkpoint_dir)
             attention_paths = [os.path.join(checkpoint_dir, "attn_W_down.pt"), os.path.join(
                 checkpoint_dir, "attn_W_up.pt")]
             trainer.model.update_attention_weights_sub(attention_paths)
@@ -735,7 +714,7 @@ def main():
             results.setdefault(checkpoint_dir, {})
             results[checkpoint_dir]["test_avg"] = np.mean(test_avg)
             results[checkpoint_dir]["test_each"] = test_metrics_all
-    print(results)
+    logger.info(results)
 
     return results
 

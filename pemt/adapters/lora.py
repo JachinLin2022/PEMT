@@ -144,25 +144,14 @@ class Linear(nn.Linear, LoRALayer):
             else:
                 self.lora_A = nn.ParameterList()
                 self.lora_B = nn.ParameterList()
-                for i in range(lora_num):
+                for _ in range(lora_num):
                     self.lora_A.append(nn.Parameter(self.weight.new_zeros((r, in_features))))
                     self.lora_B.append(nn.Parameter(self.weight.new_zeros((out_features, r))))
 
-                # gate network
-                # self.k = lora_num
-                # self.num_experts = lora_num
-                # self.noisy_gating = True
                 self.w_gate = nn.Parameter(torch.zeros(out_features if is_decoder else in_features, lora_num), requires_grad=True)
-                # self.temperature = (out_features * torch.exp(torch.clamp(nn.Parameter(torch.Tensor([1]), requires_grad=True), min=0.005, max=5))).cuda()
                 self.temperature = 1
                 nn.init.zeros_(self.w_gate)
-                print('using zeros_ gate')
-                # nn.init.kaiming_uniform_(self.w_gate, a=math.sqrt(5))
-
-                # self.softplus = nn.Softplus()
                 self.softmax = nn.Softmax(dim=-1)
-                # self.register_buffer("mean", torch.tensor([0.0]))
-                # self.register_buffer("std", torch.tensor([1.0]))
 
             self.scaling = self.lora_alpha / self.r
             # Freezing the pre-trained weight matrix
@@ -214,16 +203,6 @@ class Linear(nn.Linear, LoRALayer):
                 result += (self.lora_dropout(x) @ self.lora_A.transpose(0, 1) @ self.lora_B.transpose(0, 1)) * self.scaling
                 return result
             else:
-                # gates, load = self.noisy_top_k_gating(x, self.training)
-                # importance = gates.sum(0)
-
-                # using token 0 as task vector
-                # print(self.task_prefix_len)
-
-                # if x.shape[1] > self.task_prefix_len:
-                #     gate_x = x[:,:self.task_prefix_len,:].mean(1).unsqueeze(1)
-                # else:
-                #     gate_x = x[:,0,:].unsqueeze(1)
                 if encoder_hidden_states is not None:
                     gate_x = encoder_hidden_states[:,:self.task_prefix_len,:].mean(1).unsqueeze(1)
                 else:
@@ -231,45 +210,7 @@ class Linear(nn.Linear, LoRALayer):
 
 
                 gete_out = gate_x @ self.w_gate
-
-                # gete_out = (x @ self.w_gate).sum(dim=1).unsqueeze(1)
-
-
-
-                # gate = gate_x@self.w_gate
-                # gate = torch.nn.functional.softmax(gate.sum(0))
-                # for i in range(self.lora_num):
-                #     result += (self.lora_dropout(x) @ self.lora_A[i].transpose(0, 1) @ self.lora_B[i].transpose(0, 1)) * self.scaling * gate[i].item()
-                
-
-                if 1 or self.training:
-                    gating_weights = self.softmax(gete_out/self.temperature)
-                else:
-                    print('argmax')
-                    max_index = torch.argmax(gete_out,dim=2)
-                    gating_weights = torch.zeros_like(gete_out)
-                    gating_weights.scatter_(2, max_index.unsqueeze(2), 1)
-
-                # gete_out[:,:,0] = gete_out[:,:,0] + 999999999
-                # gete_out[:,:,1:] = 0
-                
-                
-                if moe_output:
-                    pass
-                    # moe_output.append(gating_weights.cpu().numpy())
-                
-                # tmp_x = self.lora_dropout(x).expand(self.lora_num, -1, -1, -1).view(self.lora_num, -1, 3072)
-                # # 将参数堆叠成3D张量
-                # A_stacked = torch.stack([a.transpose(0, 1) for a in self.lora_A], dim=0)
-                # B_stacked = torch.stack([b.transpose(0, 1) for b in self.lora_B], dim=0)
-
-                # # 执行批量矩阵乘法
-                # intermediate_results = torch.bmm(tmp_x, A_stacked)
-                # all_results = torch.bmm(intermediate_results, B_stacked).view(self.lora_num, 128, -1, 768)
-                
-                # # 应用缩放并堆叠
-                # final_output = all_results * self.scaling
-                # final_output = torch.stack([final_output[i] for i in range(self.lora_num)], dim=3) @ gating_weights.unsqueeze(3)
+                gating_weights = self.softmax(gete_out/self.temperature)
                 
                 all_results = []
                 x = self.lora_dropout(x)

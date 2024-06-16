@@ -1,9 +1,4 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES="0"
-export http_proxy='http://127.0.0.1:7890'
-export https_proxy='http://127.0.0.1:7890'
-export CURL_CA_BUNDLE=''
-
 do_train=true
 do_eval=true
 do_test=true
@@ -38,12 +33,12 @@ task_reduction_factor=16
 lrs=(3e-4)
 seed=4096
 task=superglue-cb
-
+few_shot=8
 for learning_rate in ${lrs[@]}
 do
     num_train_epochs=20
     warmup_steps=0
-    per_device_train_batch_size=32
+    per_device_train_batch_size=$few_shot
     max_source_length=256
     prefix="result/stage1/"
     source_tasks="mnli,qnli,qqp,sst2,squad,superglue-record"
@@ -57,8 +52,7 @@ do
     load_lora_path=${load_lora_path:1}
     load_task_path=${load_task_path:1}
     echo $load_lora_path
-    output_dir="result/stage2/"$task"/"$learning_rate"_"$per_device_train_batch_size"_"$task_reduction_factor
-
+    output_dir="result/stage2_few_shot/"$task"/"$learning_rate"_"$per_device_train_batch_size"_"$task_reduction_factor
 
     python run_seq2seq.py \
     --do_train=$do_train \
@@ -108,6 +102,7 @@ do
     --logging_steps 10 \
     --init_task_from_vocab=true \
     --load_lora_path=$load_lora_path \
+    --few_shot=$few_shot \
     --seed $seed
-
+    
 done

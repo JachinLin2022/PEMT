@@ -298,7 +298,6 @@ class T5DenseReluDense(nn.Module):
         if config.add_lora:
             self.wi = nn.Linear(config.d_model, config.d_ff,
                             bias=False if not self.bitfit else True)
-            # self.wi = Linear(config.d_model, config.d_ff, 64, 64, 0, bias=False if not self.bitfit else True, merge_weights=False, lora_num=config.lora_num)
             self.wo = Linear(config.d_ff, config.d_model, 64, 64, 0, bias=False if not self.bitfit else True, merge_weights=False, lora_num=config.lora_num, task_prefix_len=config.task_embedding_len, is_decoder=config.is_decoder)
         else:
             if self.train_task_adapters:
@@ -353,8 +352,6 @@ class T5DenseReluDense(nn.Module):
         all_result = None
         
         if self.train_task_adapters:
-            # stage2_adapter
-            # task = 'qnli'
             gating_weights = None
             if len(self.config.source_task) > 1:
                 if encoder_hidden_states is not None:
@@ -464,7 +461,6 @@ class T5LayerFF(nn.Module):
             adapter_config.reduction_factor = adapter_config.task_reduction_factor
             adapter_config.input_dim = config.d_model
             adapter_config.output_dim = config.d_model
-            # adapter_config.tasks = ['rte']
             adapter_config.tasks = config.target_task
             self.adapter_controller = AdapterController(adapter_config)
         self.layer_norm = T5LayerNorm(
@@ -476,20 +472,13 @@ class T5LayerFF(nn.Module):
         forwarded_states = self.layer_norm(hidden_states)
         forwarded_states, moe_weight, expert_output = self.DenseReluDense(forwarded_states, task, moe_output, encoder_hidden_states)
         if self.train_task_adapters:
-            # task = 'rte'
             task = self.config.target_task[0]
             forwarded_states = self.adapter_controller(forwarded_states, task)
             if moe_weight is not None:
                 balance = moe_weight.mean(0).squeeze()
-                # imbalance_loss = 0
-                # for i in range(len(expert_output)):
-                #     loss = 1 - torch.nn.functional.cosine_similarity((forwarded_states).flatten(0,1), (expert_output[i]).flatten(0,1)).mean(0)
-                #     imbalance_loss = imbalance_loss + balance[i] * loss
-
                 imbalance_loss = 1 - torch.nn.functional.cosine_similarity(forwarded_states.flatten(0,1).unsqueeze(0), torch.stack(expert_output).flatten(1,2), dim=2).mean(1)
                 imbalance_loss = (imbalance_loss * balance).sum(0)
 
-            # print(imbalance_loss, imbalance_loss2)
         hidden_states = hidden_states + self.dropout(forwarded_states)
         
 
@@ -1111,11 +1100,7 @@ class T5Stack(T5PreTrainedModel):
                 self.attn_W_up = nn.Linear(100, self.model_dim, bias=False)
                 self.attn_non_linear = nn.SiLU()
                 self.layer_norm = nn.LayerNorm(self.model_dim)
-        if self.append_task_embeding:
-            # self.layer_norm = nn.LayerNorm(self.model_dim)
-            # self.task_gate = nn.Parameter(torch.zeros(self.model_dim, len(self.pretrain_task_emb_list)), requires_grad=True)
-            # self.softmax = nn.Softmax(dim=-1)
-            pass
+
         #######################################
         self.adapter_config = adapter_config
         self.block = nn.ModuleList(
@@ -1947,7 +1932,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             if self.load_task_path:
                 task_path_list = self.load_task_path.split(',')
                 for task_path in task_path_list:
-                    print('load task from', task_path)
+                    logger.info('load task from', task_path)
                     pretrain_embedding = torch.load(task_path)
                     self.task_list.append(pretrain_embedding['task_shared'])
         self.shared_attn = config.shared_attn
